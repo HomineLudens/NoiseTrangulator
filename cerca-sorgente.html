@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cerca sorgente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2F0; --surface:#FFFFFF; --ink:#17242C; --muted:#56656C; --line:#D3DCD9;
+  --trace:#1F6F8B; --target:#C2185B; --ok:#2E7D32; --warn:#A35F00; --bad:#B3261E;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10181C; --surface:#172329; --ink:#E2EBEE; --muted:#93A4AB; --line:#2A3A42;
+    --trace:#5FC3E4; --target:#FF5C9A; --ok:#7CCB80; --warn:#F0B44C; --bad:#FF8A80;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10181C; --surface:#172329; --ink:#E2EBEE; --muted:#93A4AB; --line:#2A3A42;
+  --trace:#5FC3E4; --target:#FF5C9A; --ok:#7CCB80; --warn:#F0B44C; --bad:#FF8A80;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
+  font-size:17px; line-height:1.45; font-variant-numeric:tabular-nums;
+  -webkit-text-size-adjust:100%;
+}
+main{max-width:760px; margin:0 auto; padding:0 16px 120px}
+header.top{max-width:760px; margin:0 auto; padding:14px 16px 10px; display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px}
+h1{font-size:1.5rem; font-weight:700; letter-spacing:-.01em; margin:0; flex:1 1 auto}
+h2{font-size:1.2rem; margin:22px 0 8px; font-weight:600}
+.status{display:flex; gap:6px; flex-wrap:wrap}
+.pill{font-size:.85rem; padding:2px 9px; border-radius:999px; border:1px solid var(--line); color:var(--muted); background:var(--surface)}
+.pill.ok{color:var(--ok); border-color:currentColor}
+.pill.warn{color:var(--warn); border-color:currentColor}
+.pill.bad{color:var(--bad); border-color:currentColor}
+
+.scope{position:relative; background:var(--surface); border:1px solid var(--line); border-radius:10px 10px 0 0; overflow:hidden}
+#spec{display:block; width:100%; height:clamp(230px,44vh,380px); touch-action:manipulation; cursor:crosshair}
+.readout{position:absolute; left:12px; top:8px; pointer-events:none}
+.rf{font-size:clamp(2.4rem,11vw,3.6rem); font-weight:700; line-height:1; color:var(--target); letter-spacing:-.02em}
+.rf small{font-size:.38em; font-weight:500; margin-left:4px; color:var(--muted)}
+.rl{font-size:.95rem; color:var(--ink); margin-top:4px}
+.rl span{font-weight:600}
+.hint{position:absolute; left:12px; right:12px; bottom:30px; color:var(--muted); font-size:.95rem; pointer-events:none}
+#wf{display:block; width:100%; height:84px; background:#0d1b22; border:1px solid var(--line); border-top:0; border-radius:0 0 10px 10px}
+
+.peaks{display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 2px; min-height:34px}
+.peaks button{font:inherit; font-size:.92rem; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer}
+.peaks button.on{border-color:var(--target); color:var(--target); font-weight:600}
+.peaks .lbl{font-size:.9rem; color:var(--muted); align-self:center; margin-right:2px}
+
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--surface)}
+.seg button{font:inherit; font-size:.92rem; border:0; background:transparent; color:var(--ink); padding:6px 10px; cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+.ctl{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin:12px 0}
+.ctl .name{font-size:.92rem; color:var(--muted); margin-right:6px}
+
+button.primary,button.secondary,button.danger{font:inherit; font-weight:600; border-radius:10px; padding:12px 18px; cursor:pointer; border:2px solid var(--ink)}
+button.primary{background:var(--ink); color:var(--bg)}
+button.secondary{background:transparent; color:var(--ink)}
+button.danger{background:transparent; color:var(--bad); border-color:var(--bad)}
+button:disabled{opacity:.5; cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--target); outline-offset:2px}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px; margin:14px 0}
+.measure{border-left:4px solid var(--target)}
+label{display:block; font-size:.92rem; color:var(--muted)}
+input[type=text],input[type=number],select,textarea{font:inherit; font-size:1rem; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; width:100%; margin-top:4px}
+input[type=number]{width:7em}
+textarea{min-height:110px; font-size:.85rem}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
+.row > *{flex:1 1 160px}
+.row > button{flex:0 0 auto}
+.prog{height:6px; background:var(--line); border-radius:3px; margin-top:12px; overflow:hidden}
+.prog div{height:100%; width:0; background:var(--target)}
+.msg{margin:10px 0 0; font-size:.95rem}
+.msg.warn{color:var(--warn)} .msg.bad{color:var(--bad)} .msg.ok{color:var(--ok)}
+.note{font-size:.95rem; color:var(--muted); margin:6px 0 0; max-width:68ch}
+.chk{display:flex; gap:8px; align-items:center; color:var(--ink); font-size:.95rem}
+.chk input{width:20px; height:20px; accent-color:var(--target)}
+
+details.guide{margin:18px 0}
+details.guide summary{cursor:pointer; font-weight:600}
+details.guide ol{padding-left:1.3em; max-width:68ch}
+details.guide li{margin:6px 0}
+
+#map{display:block; width:100%; aspect-ratio:1/1; max-height:620px; background:var(--surface); border:1px solid var(--line); border-radius:10px; touch-action:manipulation}
+.result{font-size:1rem; max-width:68ch}
+.result p{margin:6px 0}
+.result a{color:var(--trace)}
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:.88rem; color:var(--muted); margin:8px 0}
+.legend i{display:inline-block; width:12px; height:12px; vertical-align:-1px; margin-right:5px; border-radius:50%}
+.settings{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
+
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:.92rem; min-width:560px}
+th,td{text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:top}
+th{font-weight:600; color:var(--muted)}
+td.num{text-align:right}
+.iconbtn{font:inherit; border:1px solid var(--line); background:transparent; color:var(--ink); border-radius:6px; padding:3px 8px; cursor:pointer}
+.empty{color:var(--muted); padding:20px 0}
+.btns{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0}
+
+nav.tabs{position:fixed; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--line); display:flex; justify-content:center; padding-bottom:env(safe-area-inset-bottom,0px); z-index:20}
+nav.tabs button{font:inherit; font-weight:600; flex:0 1 200px; background:transparent; border:0; color:var(--muted); padding:14px 8px; cursor:pointer; border-top:3px solid transparent}
+nav.tabs button[aria-selected="true"]{color:var(--ink); border-top-color:var(--target)}
+.toast{position:fixed; left:50%; bottom:calc(76px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:9px 16px; border-radius:8px; font-size:.95rem; opacity:0; transition:opacity .2s; pointer-events:none; z-index:30; max-width:90vw}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Cerca sorgente</h1>
+  <div class="status">
+    <span id="stMic" class="pill">Microfono spento</span>
+    <span id="stGps" class="pill">GPS spento</span>
+  </div>
+</header>
+
+<main>
+<!-- ASCOLTA -->
+<section id="v-ascolta" class="view">
+  <div class="scope">
+    <canvas id="spec" aria-label="Spettro audio: tocca un picco per seguirlo"></canvas>
+    <div class="readout" aria-live="polite">
+      <div class="rf"><span id="rHz">—</span><small>Hz</small></div>
+      <div class="rl">Livello <span id="rLev">—</span> dBFS, sopra il fondo <span id="rSnr">—</span> dB</div>
+    </div>
+    <div id="hint" class="hint">Avvia il microfono, poi tocca il picco del rumore che vuoi seguire.</div>
+  </div>
+  <canvas id="wf" aria-hidden="true"></canvas>
+
+  <div class="peaks" id="peaks"></div>
+  <p class="note" id="note50"></p>
+
+  <div class="ctl">
+    <div><span class="name">Finestra</span>
+      <span class="seg" id="segRange">
+        <button data-v="200">0–200 Hz</button><button data-v="500">0–500 Hz</button><button data-v="2000">0–2 kHz</button><button data-v="peak">±25 Hz</button>
+      </span></div>
+    <div><span class="name">Media</span>
+      <span class="seg" id="segTau">
+        <button data-v="0.5">0,5 s</button><button data-v="2">2 s</button><button data-v="5">5 s</button>
+      </span></div>
+    <label class="chk"><input type="checkbox" id="chkFollow"> Segui piccole derive di frequenza</label>
+  </div>
+
+  <div class="btns"><button class="primary" id="btnMic">Avvia microfono e GPS</button></div>
+  <p class="msg" id="micMsg"></p>
+
+  <div class="card measure">
+    <div class="row">
+      <label>Nota sul punto (facoltativa)<input type="text" id="noteIn" placeholder="es. crinale sopra la cava, vento debole"></label>
+      <label style="flex:0 0 auto">Durata<select id="durSel"><option value="5">5 s</option><option value="10">10 s</option><option value="20">20 s</option><option value="30">30 s</option></select></label>
+      <button class="primary" id="btnMeas">Registra punto</button>
+    </div>
+    <div class="prog"><div id="progBar"></div></div>
+    <p class="msg" id="measMsg"></p>
+  </div>
+
+  <details class="guide">
+    <summary>Come fare una buona campagna di misura</summary>
+    <ol>
+      <li>Scegli un picco stabile: nella cascata sotto lo spettro deve apparire come una riga verticale continua, almeno 10 dB sopra il fondo.</li>
+      <li>Usa sempre lo stesso telefono, tenuto nello stesso modo, fermo e con il microfono riparato dal vento (basta una spugnetta o un calzino). Il livello non è calibrato: conta solo il confronto tra i punti.</li>
+      <li>Fai tutti i punti nella stessa sessione, con vento debole e possibilmente di sera o di notte: vento e inversione termica cambiano molto la propagazione delle basse frequenze.</li>
+      <li>Distribuisci i punti tutto intorno alla zona sospetta e a distanze diverse, non in fila lungo una strada. Servono almeno 4 punti validi, meglio 8–12.</li>
+      <li>Evita strade trafficate, torrenti, linee elettriche e punti dietro a costoni che fanno ombra acustica.</li>
+      <li>Controlla i candidati: avvicinati a ogni stabilimento sospetto e verifica se il picco ha la stessa frequenza, al decimo di Hz.</li>
+    </ol>
+  </details>
+</section>
+
+<!-- MAPPA -->
+<section id="v-mappa" class="view" hidden>
+  <h2>Dove potrebbe essere la sorgente</h2>
+  <canvas id="map" aria-label="Mappa dei punti di misura e della zona stimata della sorgente"></canvas>
+  <div class="legend">
+    <span><i style="background:var(--trace)"></i>Punti di misura (più grandi = più forti)</span>
+    <span><i style="background:var(--target);border-radius:2px"></i>Zona compatibile (95%)</span>
+    <span><i style="border:2px solid var(--ink);border-radius:2px;transform:rotate(45deg)"></i>Candidati</span>
+  </div>
+  <div class="result" id="mapRes"></div>
+  <div class="result" id="tapRes"></div>
+
+  <h2>Stabilimenti candidati</h2>
+  <p class="note">Incolla le coordinate da Google Maps (tasto destro o pressione lunga sul punto, poi copia i numeri). La mappa dice se ciascuno è compatibile con le misure.</p>
+  <div class="row" style="margin-top:8px">
+    <label>Nome<input type="text" id="cName" placeholder="es. Fonderia nord"></label>
+    <label>Coordinate<input type="text" id="cCoord" placeholder="45.5231, 11.3312" inputmode="decimal"></label>
+    <button class="secondary" id="btnCand">Aggiungi</button>
+  </div>
+  <p class="msg" id="candMsg"></p>
+  <div id="candList"></div>
+
+  <h2>Modello di propagazione</h2>
+  <div class="settings">
+    <label>Divergenza<select id="setDiv"><option value="20">20 dB per decade (sorgente puntiforme)</option><option value="15">15 dB per decade (terreno irregolare)</option><option value="10">10 dB per decade (sorgente lineare)</option></select></label>
+    <label>Attenuazione aggiuntiva (dB/km)<input type="number" id="setAtt" step="0.5" min="0" max="20"></label>
+    <label>Sopra il fondo, minimo (dB)<input type="number" id="setSnr" step="1" min="0" max="40"></label>
+    <label>Incertezza di ogni misura (dB)<input type="number" id="setSig" step="0.5" min="0.5" max="15"></label>
+  </div>
+  <p class="note">Sotto i 200 Hz l’assorbimento dell’aria è trascurabile: lascia l’attenuazione a 0 se non hai motivi per cambiarla. Aumenta l’incertezza se le misure ripetute nello stesso punto variano molto.</p>
+</section>
+
+<!-- PUNTI -->
+<section id="v-punti" class="view" hidden>
+  <h2>Punti registrati</h2>
+  <div id="ptsList"></div>
+  <div class="btns">
+    <button class="secondary" id="btnCsv">Esporta CSV</button>
+    <button class="secondary" id="btnGeo">Esporta GeoJSON</button>
+    <button class="secondary" id="btnJson">Salva copia completa</button>
+  </div>
+  <p class="note">Il GeoJSON si apre in Google My Maps, QGIS o Google Earth Web. La copia completa contiene punti, candidati e impostazioni e si può reimportare qui sotto.</p>
+  <h2>Importa una copia</h2>
+  <textarea id="impTxt" placeholder="Incolla qui il contenuto di una copia completa (.json)"></textarea>
+  <div class="btns">
+    <button class="secondary" id="btnImp">Importa e unisci</button>
+    <button class="danger" id="btnClear">Cancella tutti i punti</button>
+  </div>
+  <div id="fallbackOut"></div>
+</section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-view="ascolta" aria-selected="true">Ascolta</button>
+  <button role="tab" data-view="mappa" aria-selected="false">Mappa</button>
+  <button role="tab" data-view="punti" aria-selected="false" id="tabPunti">Punti</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const LS='cerca-sorgente-v1';
+const state={points:[],candidates:[],settings:{range:'500',tau:2,dur:10,follow:true,tol:1.5,div:20,att:0,minSnr:6,sigma:3}};
+try{const s=JSON.parse(localStorage.getItem(LS)||'null'); if(s){state.points=s.points||[]; state.candidates=s.candidates||[]; Object.assign(state.settings,s.settings||{});}}catch(e){}
+function save(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
+
+// ---------- formatting ----------
+const fmt=(n,d=1)=>(n==null||!isFinite(n))?'—':n.toFixed(d).replace('.',',').replace('-','−');
+const dbv=p=>10*Math.log10(p+1e-30);
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const median=a=>{const b=[...a].sort((x,y)=>x-y); return b[Math.floor(b.length/2)];};
+const std=a=>{if(a.length<2)return 0; const m=mean(a); return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1));};
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(t){const el=$('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2600);}
+function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x))); const m=x/p; return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
+
+let colors={};
+function readColors(){const cs=getComputedStyle(document.documentElement); ['bg','surface','ink','muted','line','trace','target'].forEach(k=>colors[k]=cs.getPropertyValue('--'+k).trim());}
+readColors();
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{readColors(); drawMap();});}catch(e){}
+
+// ---------- canvases ----------
+function fitCanvas(cv){const dpr=window.devicePixelRatio||1; const r=cv.getBoundingClientRect(); const w=Math.max(1,Math.round(r.width*dpr)), h=Math.max(1,Math.round(r.height*dpr)); if(cv.width!==w||cv.height!==h){cv.width=w; cv.height=h; return true;} return false;}
+function fitAll(){fitCanvas($('spec')); if(fitCanvas($('wf'))) clearWf(); if(!$('v-mappa').hidden){fitCanvas($('map')); drawMap();}}
+window.addEventListener('resize',fitAll);
+
+// ---------- audio ----------
+let actx=null, analyser=null, stream=null, binHz=1, raw=null, avg=null, nUse=0, running=false, lastT=0, first=true, wakeLock=null;
+let targetHz=null, lastTone=null, yTop=-40;
+const SPAN=70;
+
+function setPill(id,text,cls){const el=$(id); el.textContent=text; el.className='pill'+(cls?' '+cls:'');}
+
+async function startMic(){
+  $('micMsg').textContent=''; $('micMsg').className='msg';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setPill('stMic','Microfono non disponibile','bad'); micError('Questo browser non dà accesso al microfono. Usa Chrome o Safari aggiornati, su una pagina https.'); return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}});
+  }catch(e){
+    setPill('stMic','Microfono bloccato','bad');
+    micError('Il microfono è stato negato o bloccato. Consenti l’accesso nelle impostazioni del browser e riprova. Se la pagina è aperta dentro la chat, aprila nella sua scheda.');
+    return;
+  }
+  const AC=window.AudioContext||window.webkitAudioContext;
+  actx=new AC();
+  try{await actx.resume();}catch(e){}
+  const src=actx.createMediaStreamSource(stream);
+  analyser=actx.createAnalyser();
+  analyser.fftSize=32768; analyser.smoothingTimeConstant=0; analyser.minDecibels=-160; analyser.maxDecibels=0;
+  src.connect(analyser);
+  binHz=actx.sampleRate/analyser.fftSize;
+  nUse=Math.min(analyser.frequencyBinCount,Math.ceil(2600/binHz));
+  raw=new Float32Array(analyser.frequencyBinCount);
+  avg=new Float64Array(nUse);
+  running=true; first=true; lastT=performance.now();
+  setPill('stMic','Microfono attivo, risoluzione '+fmt(binHz,2)+' Hz','ok');
+  $('btnMic').textContent='Ferma microfono'; $('btnMic').className='secondary';
+  $('hint').textContent=targetHz==null?'Tocca il picco del rumore che vuoi seguire, o scegline uno qui sotto.':'';
+  const tr=stream.getAudioTracks()[0];
+  const st=tr&&tr.getSettings?tr.getSettings():{};
+  if(st.noiseSuppression||st.echoCancellation||st.autoGainControl){
+    $('micMsg').className='msg warn';
+    $('micMsg').textContent='Il browser tiene attivi filtri vocali (riduzione rumore o guadagno automatico): i livelli potrebbero non essere confrontabili. Prova con un altro browser.';
+  }
+  try{ if(navigator.wakeLock) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){}
+  startGps();
+  clearWf();
+  requestAnimationFrame(loop);
+}
+function micError(t){$('micMsg').className='msg bad'; $('micMsg').textContent=t;}
+function stopMic(){
+  running=false;
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  if(actx) actx.close().catch(()=>{});
+  actx=null; analyser=null; stream=null;
+  if(wakeLock){wakeLock.release().catch(()=>{}); wakeLock=null;}
+  if(meas){meas=null; $('measMsg').className='msg warn'; $('measMsg').textContent='Misura interrotta.'; resetMeasBtn();}
+  setPill('stMic','Microfono spento');
+  $('btnMic').textContent='Avvia microfono e GPS'; $('btnMic').className='primary';
+}
+$('btnMic').addEventListener('click',()=>{running?stopMic():startMic();});
+document.addEventListener('visibilitychange',async()=>{ if(document.visibilityState==='visible'&&running&&!wakeLock&&navigator.wakeLock){try{wakeLock=await navigator.wakeLock.request('screen');}catch(e){}} });
+
+// ---------- GPS ----------
+let fix=null, gpsWatch=null;
+function startGps(){
+  if(gpsWatch!=null) return;
+  if(!navigator.geolocation){setPill('stGps','GPS non disponibile','bad'); return;}
+  setPill('stGps','GPS in attesa','warn');
+  gpsWatch=navigator.geolocation.watchPosition(p=>{
+    fix={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};
+    setPill('stGps','GPS ±'+Math.round(fix.acc)+' m',fix.acc<=30?'ok':'warn');
+  },e=>{
+    setPill('stGps',e.code===1?'GPS negato':'GPS senza segnale','bad');
+  },{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+}
+
+// ---------- tone tracking ----------
+function measureTone(){
+  if(targetHz==null||!avg) return null;
+  const tolB=Math.max(1,Math.round(state.settings.tol/binHz));
+  const c=Math.round(targetHz/binHz);
+  const lo=Math.max(3,c-tolB), hi=Math.min(nUse-4,c+tolB);
+  if(hi<lo) return null;
+  let best=lo; for(let b=lo;b<=hi;b++) if(avg[b]>avg[best]) best=b;
+  const y0=dbv(avg[best-1]), y1=dbv(avg[best]), y2=dbv(avg[best+1]);
+  const den=y0-2*y1+y2; let d=den<0?0.5*(y0-y2)/den:0; if(!(Math.abs(d)<=0.5)) d=0;
+  const hz=(best+d)*binHz;
+  const gIn=Math.max(4,Math.round(3/binHz)), gW=Math.max(10,Math.round(10/binHz));
+  const arr=[];
+  for(let b=best-gIn-gW;b<=best-gIn;b++) if(b>=2) arr.push(dbv(avg[b]));
+  for(let b=best+gIn;b<=best+gIn+gW;b++) if(b<nUse) arr.push(dbv(avg[b]));
+  if(!arr.length) return null;
+  const med=median(arr);
+  const bgP=Math.pow(10,med/10);
+  let sum=0; for(let b=best-2;b<=best+2;b++) sum+=avg[b];
+  const tone=sum-5*bgP;
+  return {hz, peak:y1, bg:med, snr:y1-med, level:tone>0?dbv(tone):NaN, pow:tone>0?tone:0};
+}
+
+// ---------- main loop ----------
+let wfLast=0, pkLast=0, meas=null;
+function loop(t){
+  if(!running) return;
+  const dt=Math.min(0.5,Math.max(0,(t-lastT)/1000)); lastT=t;
+  analyser.getFloatFrequencyData(raw);
+  const a=first?1:1-Math.exp(-dt/state.settings.tau); first=false;
+  for(let i=0;i<nUse;i++){let d=raw[i]; if(!(d>-160)) d=-160; const p=Math.pow(10,d/10); avg[i]+=(p-avg[i])*a;}
+  const tone=measureTone(); lastTone=tone;
+  if(tone&&state.settings.follow) targetHz+=(tone.hz-targetHz)*0.03;
+  updateReadout(tone);
+  if(meas) stepMeasure(tone,t);
+  drawSpectrum(tone);
+  if(t-wfLast>110){wfLast=t; drawWf();}
+  if(t-pkLast>700){pkLast=t; findPeaks();}
+  requestAnimationFrame(loop);
+}
+function updateReadout(tone){
+  $('rHz').textContent=tone?fmt(tone.hz,1):'—';
+  $('rLev').textContent=tone?fmt(tone.level,1):'—';
+  $('rSnr').textContent=tone?fmt(tone.snr,0):'—';
+}
+
+// ---------- spectrum ----------
+function viewRange(){
+  const r=state.settings.range;
+  if(r==='peak'&&targetHz!=null) return [Math.max(0,targetHz-25),targetHz+25];
+  if(r==='200') return [0,200];
+  if(r==='2000') return [0,2000];
+  return [0,500];
+}
+function drawSpectrum(tone){
+  const cv=$('spec'), g=cv.getContext('2d'), W=cv.width, H=cv.height, dpr=window.devicePixelRatio||1;
+  g.clearRect(0,0,W,H);
+  if(!avg) return;
+  const [f0,f1]=viewRange(); const padB=22*dpr, plotH=H-padB;
+  const b0=Math.max(2,Math.floor(f0/binHz)), b1=Math.min(nUse-1,Math.ceil(f1/binHz));
+  let mx=-200; for(let b=b0;b<=b1;b++){const v=dbv(avg[b]); if(v>mx) mx=v;}
+  const want=Math.ceil((mx+8)/10)*10; yTop+=(want-yTop)*0.08; if(!isFinite(yTop)) yTop=-40;
+  const yBot=yTop-SPAN;
+  const X=f=>(f-f0)/(f1-f0)*W, Y=d=>Math.min(plotH,Math.max(0,(yTop-d)/SPAN*plotH));
+  // grid
+  g.lineWidth=1; g.strokeStyle=colors.line; g.fillStyle=colors.muted;
+  g.font=(11*dpr)+'px "IBM Plex Sans Condensed",system-ui,sans-serif';
+  const step=niceStep((f1-f0)/6);
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  for(let f=Math.ceil(f0/step)*step; f<=f1+1e-9; f+=step){const x=Math.round(X(f))+.5; g.beginPath(); g.moveTo(x,0); g.lineTo(x,plotH); g.stroke(); if(x>14*dpr&&x<W-14*dpr) g.fillText((Math.round(f*10)/10).toString().replace('.',','),x,H-6*dpr);}
+  g.textAlign='right';
+  for(let d=Math.ceil(yBot/10)*10; d<=yTop; d+=10){const y=Math.round(Y(d))+.5; g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); g.fillText(fmt(d,0),W-4*dpr,y-3*dpr);}
+  // target band
+  if(targetHz!=null){
+    const tol=state.settings.tol;
+    g.fillStyle=colors.target; g.globalAlpha=.13;
+    const xa=X(targetHz-tol), xb=X(targetHz+tol); g.fillRect(xa,0,Math.max(2*dpr,xb-xa),plotH);
+    g.globalAlpha=1;
+  }
+  // trace
+  g.beginPath();
+  if((b1-b0)<W/2){
+    for(let b=b0;b<=b1;b++){const x=X(b*binHz), y=Y(dbv(avg[b])); b===b0?g.moveTo(x,y):g.lineTo(x,y);}
+  }else{
+    for(let x=0;x<W;x++){
+      const ba=Math.max(2,Math.floor((f0+x/W*(f1-f0))/binHz)), bb=Math.min(nUse-1,Math.max(ba,Math.floor((f0+(x+1)/W*(f1-f0))/binHz)));
+      let m=-200; for(let b=ba;b<=bb;b++){const v=dbv(avg[b]); if(v>m) m=v;}
+      const y=Y(m); x===0?g.moveTo(x,y):g.lineTo(x,y);
+    }
+  }
+  g.strokeStyle=colors.trace; g.lineWidth=1.6*dpr; g.lineJoin='round'; g.stroke();
+  g.lineTo(W,plotH); g.lineTo(0,plotH); g.closePath(); g.fillStyle=colors.trace; g.globalAlpha=.1; g.fill(); g.globalAlpha=1;
+  // target line
+  if(tone){
+    const x=X(tone.hz); g.strokeStyle=colors.target; g.lineWidth=2*dpr; g.setLineDash([5*dpr,4*dpr]);
+    g.beginPath(); g.moveTo(x,Y(tone.peak)-6*dpr); g.lineTo(x,plotH); g.stroke(); g.setLineDash([]);
+    g.fillStyle=colors.target; g.beginPath(); g.arc(x,Y(tone.peak),4*dpr,0,Math.PI*2); g.fill();
+    g.strokeStyle=colors.target; g.globalAlpha=.6; g.lineWidth=1*dpr; g.beginPath(); const yb=Y(tone.bg); g.moveTo(x-18*dpr,yb); g.lineTo(x+18*dpr,yb); g.stroke(); g.globalAlpha=1;
+  }
+}
+function snapToPeak(f){
+  const [f0,f1]=viewRange(); const w=Math.max(1.5,(f1-f0)*0.012);
+  const lo=Math.max(3,Math.floor((f-w)/binHz)), hi=Math.min(nUse-4,Math.ceil((f+w)/binHz));
+  let best=lo; for(let b=lo;b<=hi;b++) if(avg[b]>avg[best]) best=b;
+  return best*binHz;
+}
+function setTarget(f){
+  targetHz=f; yTop=yTop; $('hint').textContent='';
+  update50Note(); renderPeakChips();
+  if(state.settings.range==='peak') clearWf();
+}
+$('spec').addEventListener('click',e=>{
+  if(!avg){ $('hint').textContent='Avvia prima il microfono.'; return; }
+  const r=$('spec').getBoundingClientRect(); const [f0,f1]=viewRange();
+  const f=f0+(e.clientX-r.left)/r.width*(f1-f0);
+  setTarget(snapToPeak(f));
+});
+
+// ---------- waterfall ----------
+const RAMP=[[13,27,34],[31,111,139],[143,211,199],[246,226,122]];
+function ramp(v){v=Math.max(0,Math.min(1,v))*3; const i=Math.min(2,Math.floor(v)), f=v-i, a=RAMP[i], b=RAMP[i+1]; return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];}
+function clearWf(){const cv=$('wf'); const g=cv.getContext('2d'); g.fillStyle='#0d1b22'; g.fillRect(0,0,cv.width,cv.height);}
+let wfRange='';
+function drawWf(){
+  const cv=$('wf'), g=cv.getContext('2d'), W=cv.width, H=cv.height, dpr=window.devicePixelRatio||1;
+  const [f0,f1]=viewRange(); const key=f0.toFixed(0)+'-'+f1.toFixed(0);
+  if(key!==wfRange&&state.settings.range!=='peak'){wfRange=key; clearWf();}
+  const rowH=Math.max(1,Math.round(dpr));
+  g.drawImage(cv,0,0,W,H-rowH,0,rowH,W,H-rowH);
+  const img=g.createImageData(W,rowH); const yBot=yTop-SPAN;
+  for(let x=0;x<W;x++){
+    const ba=Math.max(2,Math.floor((f0+x/W*(f1-f0))/binHz)), bb=Math.min(nUse-1,Math.max(ba,Math.floor((f0+(x+1)/W*(f1-f0))/binHz)));
+    let m=-200; for(let b=ba;b<=bb;b++){const v=dbv(avg[b]); if(v>m) m=v;}
+    const c=ramp((m-yBot)/SPAN);
+    for(let r=0;r<rowH;r++){const o=(r*W+x)*4; img.data[o]=c[0]; img.data[o+1]=c[1]; img.data[o+2]=c[2]; img.data[o+3]=255;}
+  }
+  g.putImageData(img,0,0);
+}
+
+// ---------- automatic peaks ----------
+let autoPeaks=[];
+function findPeaks(){
+  const [f0,f1]=viewRange();
+  const b0=Math.max(Math.ceil(8/binHz),Math.floor(f0/binHz)+3), b1=Math.min(nUse-25,Math.ceil(f1/binHz));
+  const win=Math.max(12,Math.round(8/binHz)), cand=[];
+  for(let b=b0;b<=b1;b++){
+    let isMax=true; for(let k=1;k<=3;k++){ if(avg[b-k]>avg[b]||avg[b+k]>avg[b]){isMax=false;break;} }
+    if(!isMax) continue;
+    const arr=[]; for(let k=b-win;k<=b+win;k+=1){ if(k>=2&&k<nUse&&Math.abs(k-b)>3) arr.push(dbv(avg[k])); }
+    const prom=dbv(avg[b])-median(arr);
+    if(prom>=8) cand.push({hz:b*binHz,prom});
+  }
+  cand.sort((a,b)=>b.prom-a.prom);
+  autoPeaks=cand.slice(0,6).sort((a,b)=>a.hz-b.hz);
+  renderPeakChips();
+}
+function renderPeakChips(){
+  const el=$('peaks'); el.innerHTML='';
+  if(!autoPeaks.length){ if(running){const s=document.createElement('span'); s.className='lbl'; s.textContent='Nessun picco netto in questa finestra'; el.appendChild(s);} return; }
+  const s=document.createElement('span'); s.className='lbl'; s.textContent='Picchi:'; el.appendChild(s);
+  autoPeaks.forEach(p=>{
+    const b=document.createElement('button');
+    b.textContent=fmt(p.hz,1)+' Hz'; b.title='Sopra il fondo di '+fmt(p.prom,0)+' dB';
+    if(targetHz!=null&&Math.abs(p.hz-targetHz)<state.settings.tol) b.className='on';
+    b.addEventListener('click',()=>setTarget(snapToPeak(p.hz)));
+    el.appendChild(b);
+  });
+}
+function update50Note(){
+  const el=$('note50'); if(targetHz==null){el.textContent=''; return;}
+  const k=Math.round(targetHz/50);
+  if(k>=1&&Math.abs(targetHz-k*50)<0.6){
+    el.textContent='Multiplo di 50 Hz: tipico di trasformatori, motori e quadri elettrici collegati alla rete, quindi poco caratterizzante. Verifica anche che non arrivi dal telefono stesso (misura a batteria, lontano da linee elettriche).';
+  }else{
+    el.textContent='Frequenza non legata alla rete elettrica: spesso dipende dalla velocità di ventilatori, compressori o pompe. Se resta identica in tutti i punti, è un’ottima impronta della sorgente.';
+  }
+}
+
+// ---------- measurement ----------
+function resetMeasBtn(){$('btnMeas').disabled=false; $('btnMeas').textContent='Registra punto'; $('progBar').style.width='0';}
+$('durSel').value=String(state.settings.dur);
+$('durSel').addEventListener('change',()=>{state.settings.dur=+$('durSel').value; save();});
+$('btnMeas').addEventListener('click',()=>{
+  const m=$('measMsg'); m.className='msg';
+  if(!running){m.className='msg warn'; m.textContent='Avvia prima il microfono.'; return;}
+  if(targetHz==null){m.className='msg warn'; m.textContent='Tocca prima sullo spettro il picco da seguire.'; return;}
+  meas={t0:performance.now(),dur:state.settings.dur*1000,pows:[],dbs:[],hzs:[],snrs:[],fixes:[]};
+  $('btnMeas').disabled=true; $('btnMeas').textContent='Misura in corso, stai fermo…';
+  m.textContent='';
+});
+function stepMeasure(tone,t){
+  if(tone){meas.pows.push(tone.pow); if(isFinite(tone.level)) meas.dbs.push(tone.level); meas.hzs.push(tone.hz); meas.snrs.push(tone.snr);}
+  if(fix&&Date.now()-fix.t<15000) meas.fixes.push(fix);
+  const p=Math.min(1,(t-meas.t0)/meas.dur); $('progBar').style.width=(p*100)+'%';
+  if(p>=1) finishMeasure();
+}
+function finishMeasure(){
+  const M=meas; meas=null; resetMeasBtn();
+  const m=$('measMsg');
+  if(!M.pows.length){m.className='msg bad'; m.textContent='Nessun dato raccolto: riprova.'; return;}
+  const mp=mean(M.pows);
+  const bestFix=M.fixes.length?M.fixes.reduce((a,b)=>b.acc<a.acc?b:a):null;
+  const pt={id:Date.now().toString(36), t:new Date().toISOString(),
+    lat:bestFix?bestFix.lat:null, lon:bestFix?bestFix.lon:null, acc:bestFix?bestFix.acc:null,
+    hz:median(M.hzs), level:mp>0?dbv(mp):NaN, snr:median(M.snrs), sd:std(M.dbs), dur:M.dur/1000,
+    note:$('noteIn').value.trim(), use:true};
+  state.points.push(pt); save(); renderPoints();
+  $('noteIn').value='';
+  try{navigator.vibrate&&navigator.vibrate(150);}catch(e){}
+  const warns=[];
+  if(!bestFix) warns.push('manca la posizione GPS: il punto non entrerà nella mappa');
+  else if(bestFix.acc>50) warns.push('GPS poco preciso (±'+Math.round(bestFix.acc)+' m)');
+  if(!isFinite(pt.level)||pt.snr<state.settings.minSnr) warns.push('il picco è troppo vicino al fondo');
+  if(pt.sd>4) warns.push('livello instabile (variazione '+fmt(pt.sd,1)+' dB): vento o rumori di passaggio?');
+  m.className='msg '+(warns.length?'warn':'ok');
+  m.textContent='Punto '+state.points.length+' registrato: '+fmt(pt.hz,1)+' Hz, '+fmt(pt.level,1)+' dBFS, '+fmt(pt.snr,0)+' dB sopra il fondo.'+(warns.length?' Attenzione: '+warns.join('; ')+'.':'');
+}
+
+// ---------- controls ----------
+function bindSeg(id,key,parse){
+  const el=$(id);
+  const sync=()=>el.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(String(state.settings[key])===b.dataset.v)));
+  el.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; state.settings[key]=parse(b.dataset.v); save(); sync(); if(key==='range'){clearWf(); wfRange='';}});
+  sync();
+}
+bindSeg('segRange','range',v=>v);
+bindSeg('segTau','tau',v=>parseFloat(v));
+$('chkFollow').checked=!!state.settings.follow;
+$('chkFollow').addEventListener('change',()=>{state.settings.follow=$('chkFollow').checked; save();});
+
+// ---------- tabs ----------
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+function showView(v){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===v)));
+  ['ascolta','mappa','punti'].forEach(k=>$('v-'+k).hidden=(k!==v));
+  if(v==='mappa'){fitCanvas($('map')); solveAndDraw();}
+  if(v==='ascolta'){fitAll();}
+  window.scrollTo(0,0);
+}
+
+// ---------- points list ----------
+function renderPoints(){
+  $('tabPunti').textContent='Punti ('+state.points.length+')';
+  const el=$('ptsList');
+  if(!state.points.length){el.innerHTML='<p class="empty">Nessun punto ancora. Vai su Ascolta, scegli un picco e premi Registra punto.</p>'; return;}
+  let h='<div class="tablewrap"><table><thead><tr><th>Usa</th><th>N.</th><th>Ora</th><th class="num">Hz</th><th class="num">dBFS</th><th class="num">Sopra fondo</th><th class="num">GPS</th><th>Nota</th><th></th></tr></thead><tbody>';
+  state.points.forEach((p,i)=>{
+    const d=new Date(p.t);
+    h+='<tr><td><input type="checkbox" data-use="'+p.id+'" '+(p.use?'checked':'')+' aria-label="Usa il punto '+(i+1)+'"></td>'+
+      '<td>'+(i+1)+'</td><td>'+d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})+'</td>'+
+      '<td class="num">'+fmt(p.hz,1)+'</td><td class="num">'+fmt(p.level,1)+'</td><td class="num">'+fmt(p.snr,0)+' dB</td>'+
+      '<td class="num">'+(p.lat!=null?'±'+Math.round(p.acc)+' m':'manca')+'</td><td>'+esc(p.note||'')+'</td>'+
+      '<td><button class="iconbtn" data-del="'+p.id+'" aria-label="Elimina il punto '+(i+1)+'">Elimina</button></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+$('ptsList').addEventListener('change',e=>{const id=e.target.dataset.use; if(!id) return; const p=state.points.find(x=>x.id===id); if(p){p.use=e.target.checked; save();}});
+$('ptsList').addEventListener('click',e=>{const id=e.target.dataset.del; if(!id) return; if(!confirm('Eliminare questo punto?')) return; state.points=state.points.filter(x=>x.id!==id); save(); renderPoints();});
+$('btnClear').addEventListener('click',()=>{ if(!state.points.length) return; if(!confirm('Cancellare tutti i '+state.points.length+' punti? Non si può annullare: salva prima una copia se ti serve.')) return; state.points=[]; save(); renderPoints(); toast('Punti cancellati');});
+
+// ---------- export ----------
+let dl=null;
+(async()=>{try{ if(window.claude&&window.claude.use) dl=await window.claude.use('downloads'); }catch(e){ dl=null; }})();
+async function offer(name,data){
+  if(dl){
+    try{await dl.save({filename:name,data}); toast('File pronto'); return;}
+    catch(e){ if(e&&(e.code==='declined'||e.code==='rate_limited')) return; }
+  }
+  try{await navigator.clipboard.writeText(data); toast('Copiato negli appunti'); return;}catch(e){}
+  const out=$('fallbackOut'); out.innerHTML='<h2>'+esc(name)+'</h2><p class="note">Seleziona e copia il testo qui sotto.</p>';
+  const ta=document.createElement('textarea'); ta.value=data; ta.readOnly=true; out.appendChild(ta); ta.focus(); ta.select();
+}
+const stamp=()=>new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+$('btnCsv').addEventListener('click',()=>{
+  const rows=[['n','data_ora','lat','lon','gps_m','freq_hz','livello_dbfs','sopra_fondo_db','variazione_db','durata_s','usato','nota']];
+  state.points.forEach((p,i)=>rows.push([i+1,p.t,p.lat??'',p.lon??'',p.acc!=null?Math.round(p.acc):'',p.hz?.toFixed(2),isFinite(p.level)?p.level.toFixed(2):'',p.snr?.toFixed(1),p.sd?.toFixed(2),p.dur,p.use?1:0,'"'+(p.note||'').replace(/"/g,'""')+'"']));
+  offer('misure-'+stamp()+'.csv',rows.map(r=>r.join(',')).join('\n'));
+});
+$('btnGeo').addEventListener('click',()=>{
+  const feats=state.points.filter(p=>p.lat!=null).map((p,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lon,p.lat]},properties:{nome:'Punto '+(state.points.indexOf(p)+1),freq_hz:+p.hz.toFixed(2),livello_dbfs:isFinite(p.level)?+p.level.toFixed(1):null,sopra_fondo_db:+p.snr.toFixed(1),data_ora:p.t,nota:p.note||''}}));
+  if(lastSol&&lastSol.est) feats.push({type:'Feature',geometry:{type:'Point',coordinates:[lastSol.est.lon,lastSol.est.lat]},properties:{nome:'Sorgente stimata'}});
+  state.candidates.forEach(c=>feats.push({type:'Feature',geometry:{type:'Point',coordinates:[c.lon,c.lat]},properties:{nome:'Candidato: '+c.name}}));
+  offer('misure-'+stamp()+'.geojson.json',JSON.stringify({type:'FeatureCollection',features:feats},null,1));
+});
+$('btnJson').addEventListener('click',()=>offer('cerca-sorgente-'+stamp()+'.json',JSON.stringify({app:'cerca-sorgente',v:1,...state},null,1)));
+$('btnImp').addEventListener('click',()=>{
+  try{
+    const o=JSON.parse($('impTxt').value);
+    const ids=new Set(state.points.map(p=>p.id)); let n=0;
+    (o.points||[]).forEach(p=>{ if(p&&p.id&&!ids.has(p.id)&&typeof p.hz==='number'){state.points.push(p); n++;} });
+    const cn=new Set(state.candidates.map(c=>c.name+c.lat+c.lon));
+    (o.candidates||[]).forEach(c=>{ if(c&&typeof c.lat==='number'&&!cn.has(c.name+c.lat+c.lon)) state.candidates.push(c); });
+    state.points.sort((a,b)=>a.t<b.t?-1:1);
+    save(); renderPoints(); renderCands(); $('impTxt').value=''; toast(n+' punti importati');
+  }catch(e){ toast('Il testo incollato non è una copia valida'); }
+});
+
+// ---------- candidates ----------
+function parseCoord(s){const m=String(s).match(/-?\d+\.\d+/g); if(!m||m.length<2) return null; const lat=+m[0], lon=+m[1]; if(Math.abs(lat)>90||Math.abs(lon)>180) return null; return {lat,lon};}
+$('btnCand').addEventListener('click',()=>{
+  const c=parseCoord($('cCoord').value), name=$('cName').value.trim()||('Candidato '+(state.candidates.length+1));
+  if(!c){$('candMsg').className='msg warn'; $('candMsg').textContent='Scrivi latitudine e longitudine con il punto decimale, per esempio 45.5231, 11.3312.'; return;}
+  $('candMsg').textContent='';
+  state.candidates.push({name,lat:c.lat,lon:c.lon}); save(); $('cName').value=''; $('cCoord').value=''; solveAndDraw();
+});
+function renderCands(){
+  const el=$('candList');
+  if(!state.candidates.length){el.innerHTML=''; return;}
+  let h='<div class="tablewrap"><table><thead><tr><th>Nome</th><th>Compatibilità con le misure</th><th class="num">Distanza dalla stima</th><th></th></tr></thead><tbody>';
+  state.candidates.forEach((c,i)=>{
+    let comp='—', dist='—';
+    if(lastSol&&lastSol.ok){
+      const r=lastSol.evalLL(c.lat,c.lon); const dchi=(r.rss-lastSol.rssMin)/(state.settings.sigma**2);
+      comp=dchi<=5.99?'<b style="color:var(--ok)">compatibile</b>':dchi<=13.8?'<b style="color:var(--warn)">poco probabile</b>':'<b style="color:var(--bad)">esclusa dai dati</b>';
+      dist=fmt(lastSol.distKm(c.lat,c.lon),2)+' km';
+    }
+    h+='<tr><td>'+esc(c.name)+'<br><small style="color:var(--muted)">'+c.lat.toFixed(5)+', '+c.lon.toFixed(5)+'</small></td><td>'+comp+'</td><td class="num">'+dist+'</td><td><button class="iconbtn" data-cdel="'+i+'">Elimina</button></td></tr>';
+  });
+  el.innerHTML=h+'</tbody></table></div>';
+}
+$('candList').addEventListener('click',e=>{const i=e.target.dataset.cdel; if(i==null) return; state.candidates.splice(+i,1); save(); solveAndDraw();});
+
+// ---------- settings ----------
+$('setDiv').value=String(state.settings.div); $('setAtt').value=state.settings.att; $('setSnr').value=state.settings.minSnr; $('setSig').value=state.settings.sigma;
+[['setDiv','div'],['setAtt','att'],['setSnr','minSnr'],['setSig','sigma']].forEach(([id,k])=>$(id).addEventListener('change',()=>{const v=parseFloat($(id).value); if(isFinite(v)){state.settings[k]=k==='sigma'?Math.max(0.5,v):Math.max(0,v); save(); solveAndDraw();}}));
+
+// ---------- localisation ----------
+let lastSol=null;
+function solve(){
+  const s=state.settings;
+  const pts=state.points.filter(p=>p.use&&p.lat!=null&&isFinite(p.level)&&p.snr>=s.minSnr);
+  const sol={ok:false,pts};
+  const all=state.points.filter(p=>p.lat!=null);
+  const base=pts.length?pts:all;
+  if(!base.length&&!state.candidates.length){sol.msg='Ancora nessun punto con posizione GPS. Registra almeno 4 punti attorno alla zona sospetta.'; return sol;}
+  const refs=base.length?base:state.candidates;
+  const lat0=mean(refs.map(p=>p.lat)), lon0=mean(refs.map(p=>p.lon));
+  const kx=111320*Math.cos(lat0*Math.PI/180), ky=110540;
+  const toXY=(lat,lon)=>({x:(lon-lon0)*kx,y:(lat-lat0)*ky});
+  const toLL=(x,y)=>({lat:lat0+y/ky,lon:lon0+x/kx});
+  sol.toXY=toXY; sol.toLL=toLL;
+  const P=pts.map(p=>({...toXY(p.lat,p.lon),L:p.level,p}));
+  const others=all.filter(p=>!pts.includes(p)).map(p=>({...toXY(p.lat,p.lon),p}));
+  const C=state.candidates.map(c=>({...toXY(c.lat,c.lon),c}));
+  sol.P=P; sol.others=others; sol.C=C;
+  const xs=[...P,...others,...C].map(o=>o.x), ys=[...P,...others,...C].map(o=>o.y);
+  const minx=Math.min(...xs), maxx=Math.max(...xs), miny=Math.min(...ys), maxy=Math.max(...ys);
+  const ext=Math.max(maxx-minx,maxy-miny,800);
+  const half=ext/2+Math.max(2500,ext*0.7);
+  sol.cx=(minx+maxx)/2; sol.cy=(miny+maxy)/2; sol.half=half;
+  const k=s.div, att=s.att/1000;
+  function ev(x,y){
+    let sum=0; const r=new Array(P.length);
+    for(let i=0;i<P.length;i++){const dx=P[i].x-x, dy=P[i].y-y; const d=Math.max(25,Math.hypot(dx,dy)); r[i]=-k*Math.log10(d)-att*d; sum+=P[i].L-r[i];}
+    const A=sum/P.length; let rss=0;
+    for(let i=0;i<P.length;i++){const e=P[i].L-A-r[i]; rss+=e*e;}
+    return {rss,A};
+  }
+  sol.evalLL=(lat,lon)=>{const q=toXY(lat,lon); return ev(q.x,q.y);};
+  if(P.length<4){
+    sol.msg=pts.length+(pts.length===1?' punto valido':' punti validi')+' su '+state.points.length+'. Ne servono almeno 4 con GPS e picco ben sopra il fondo, distribuiti attorno alla zona sospetta.';
+    return sol;
+  }
+  const G=110, cell=2*half/G, rss=new Float64Array(G*G);
+  let best=0;
+  for(let j=0;j<G;j++) for(let i=0;i<G;i++){
+    const x=sol.cx-half+(i+.5)*cell, y=sol.cy-half+(j+.5)*cell;
+    const v=ev(x,y).rss; rss[j*G+i]=v; if(v<rss[best]) best=j*G+i;
+  }
+  // refine
+  let bx=sol.cx-half+((best%G)+.5)*cell, by=sol.cy-half+(Math.floor(best/G)+.5)*cell, bv=rss[best];
+  for(let j=-20;j<=20;j++) for(let i=-20;i<=20;i++){const x=bx+i*cell/10, y=by+j*cell/10; const v=ev(x,y).rss; if(v<bv){bv=v; var rx=x, ry=y;}}
+  if(typeof rx==='number'){bx=rx; by=ry;}
+  sol.G=G; sol.cell=cell; sol.rss=rss; sol.rssMin=bv;
+  sol.est={x:bx,y:by,...toLL(bx,by)}; sol.A=ev(bx,by).A;
+  sol.rmsMin=Math.sqrt(bv/P.length);
+  // 95% region
+  const sig2=s.sigma*s.sigma; let n95=0, rx0=1e18, rx1=-1e18, ry0=1e18, ry1=-1e18, edge=false;
+  for(let j=0;j<G;j++) for(let i=0;i<G;i++){
+    if((rss[j*G+i]-bv)/sig2<=5.99){n95++; const x=sol.cx-half+(i+.5)*cell, y=sol.cy-half+(j+.5)*cell; rx0=Math.min(rx0,x); rx1=Math.max(rx1,x); ry0=Math.min(ry0,y); ry1=Math.max(ry1,y); if(i===0||j===0||i===G-1||j===G-1) edge=true;}
+  }
+  sol.area=n95*cell*cell/1e6; sol.box={w:(rx1-rx0+cell)/1000,h:(ry1-ry0+cell)/1000}; sol.edge=edge;
+  const hzs=pts.map(p=>p.hz); sol.hzMed=median(hzs); sol.hzSpread=Math.max(...hzs.map(h=>Math.abs(h-sol.hzMed)));
+  sol.distKm=(lat,lon)=>{const q=toXY(lat,lon); return Math.hypot(q.x-bx,q.y-by)/1000;};
+  sol.ok=true;
+  return sol;
+}
+function solveAndDraw(){
+  lastSol=solve(); drawMap(); renderResult(); renderCands();
+}
+const osm=(lat,lon)=>'https://www.openstreetmap.org/?mlat='+lat.toFixed(6)+'&mlon='+lon.toFixed(6)+'#map=15/'+lat.toFixed(6)+'/'+lon.toFixed(6);
+const gmap=(lat,lon)=>'https://www.google.com/maps/search/?api=1&query='+lat.toFixed(6)+','+lon.toFixed(6);
+function renderResult(){
+  const el=$('mapRes'), s=lastSol;
+  if(!s||!s.ok){el.innerHTML='<p>'+esc(s&&s.msg||'')+'</p>'; return;}
+  let h='<p><b>Stima più probabile:</b> '+s.est.lat.toFixed(5)+', '+s.est.lon.toFixed(5)+' (<a href="'+osm(s.est.lat,s.est.lon)+'" target="_blank" rel="noopener">OpenStreetMap</a>, <a href="'+gmap(s.est.lat,s.est.lon)+'" target="_blank" rel="noopener">Google Maps</a>)</p>';
+  h+='<p>Zona compatibile al 95%: circa '+fmt(s.box.w,1)+' × '+fmt(s.box.h,1)+' km ('+fmt(s.area,2)+' km²), calcolata su '+s.P.length+' punti. Scarto medio del modello: '+fmt(s.rmsMin,1)+' dB.</p>';
+  const w=[];
+  if(s.edge) w.push('La zona compatibile tocca il bordo: la sorgente potrebbe essere fuori dall’area coperta. Aggiungi punti dal lato opposto.');
+  if(s.rmsMin>2*state.settings.sigma) w.push('Il modello spiega male i dati: ostacoli, vento, riflessioni o più sorgenti con la stessa frequenza. Rifai i punti dubbi o aumenta l’incertezza.');
+  if(s.hzSpread>1) w.push('Le frequenze misurate differiscono fino a '+fmt(s.hzSpread,1)+' Hz: forse non stai seguendo sempre la stessa sorgente. Escludi i punti con frequenza diversa.');
+  if(s.box.w>3*Math.max(1,s.box.h)||s.box.h>3*Math.max(1,s.box.w)) w.push('La zona è molto allungata: i punti sono quasi allineati. Misura anche in direzione perpendicolare.');
+  w.forEach(t=>h+='<p style="color:var(--warn)">'+esc(t)+'</p>');
+  h+='<p class="note">Tocca la mappa per leggere le coordinate di un punto e verificarlo sulle mappe.</p>';
+  el.innerHTML=h;
+}
+function mapXform(){
+  const cv=$('map'), W=cv.width, H=cv.height, s=lastSol;
+  const sc=Math.min(W,H)/(2*s.half);
+  return {W,H,sc, X:x=>W/2+(x-s.cx)*sc, Y:y=>H/2-(y-s.cy)*sc, iX:px=>s.cx+(px-W/2)/sc, iY:py=>s.cy-(py-H/2)/sc};
+}
+function drawMap(){
+  const cv=$('map'); if($('v-mappa').hidden) return; fitCanvas(cv);
+  const g=cv.getContext('2d'), W=cv.width, H=cv.height, dpr=window.devicePixelRatio||1, s=lastSol;
+  g.clearRect(0,0,W,H);
+  if(!s||!s.toXY){g.fillStyle=colors.muted; g.font=(14*dpr)+'px "IBM Plex Sans Condensed",system-ui,sans-serif'; g.textAlign='center'; g.fillText('Nessun punto da mostrare',W/2,H/2); return;}
+  const T=mapXform();
+  // heatmap
+  if(s.ok){
+    const G=s.G, off=document.createElement('canvas'); off.width=G; off.height=G;
+    const og=off.getContext('2d'), img=og.createImageData(G,G);
+    const tc=hexRgb(colors.target), sig2=state.settings.sigma**2;
+    for(let j=0;j<G;j++) for(let i=0;i<G;i++){
+      const d=(s.rss[j*G+i]-s.rssMin)/sig2; const lik=Math.exp(-d/2);
+      const o=((G-1-j)*G+i)*4; img.data[o]=tc[0]; img.data[o+1]=tc[1]; img.data[o+2]=tc[2];
+      img.data[o+3]=d<=5.99?Math.round(60+150*lik):Math.round(45*lik);
+    }
+    og.putImageData(img,0,0);
+    g.imageSmoothingEnabled=true;
+    const x0=T.X(s.cx-s.half), y0=T.Y(s.cy+s.half), sz=2*s.half*T.sc;
+    g.drawImage(off,x0,y0,sz,sz);
+  }
+  // scale bar
+  const target=Math.min(W,H)/4/T.sc; const step=niceStep(target);
+  g.strokeStyle=colors.ink; g.fillStyle=colors.ink; g.lineWidth=2*dpr;
+  const bx=14*dpr, by=H-16*dpr, bw=step*T.sc;
+  g.beginPath(); g.moveTo(bx,by-5*dpr); g.lineTo(bx,by); g.lineTo(bx+bw,by); g.lineTo(bx+bw,by-5*dpr); g.stroke();
+  g.font=(12*dpr)+'px "IBM Plex Sans Condensed",system-ui,sans-serif'; g.textAlign='left';
+  g.fillText(step>=1000?(step/1000).toString().replace('.',',')+' km':step+' m',bx,by-9*dpr);
+  // north
+  g.textAlign='center'; g.font='600 '+(13*dpr)+'px "IBM Plex Sans Condensed",system-ui,sans-serif';
+  const nx=W-20*dpr, ny=18*dpr; g.beginPath(); g.moveTo(nx,ny+4*dpr); g.lineTo(nx-6*dpr,ny+20*dpr); g.lineTo(nx,ny+16*dpr); g.lineTo(nx+6*dpr,ny+20*dpr); g.closePath(); g.fill();
+  g.fillText('N',nx,ny);
+  // excluded points
+  g.lineWidth=1.5*dpr;
+  (s.others||[]).forEach(o=>{g.strokeStyle=colors.muted; g.beginPath(); g.arc(T.X(o.x),T.Y(o.y),4*dpr,0,Math.PI*2); g.stroke();});
+  // points
+  if(s.P&&s.P.length){
+    const Ls=s.P.map(p=>p.L), lo=Math.min(...Ls), hi=Math.max(...Ls);
+    s.P.forEach(p=>{
+      const r=(4+9*((p.L-lo)/Math.max(1,hi-lo)))*dpr, x=T.X(p.x), y=T.Y(p.y);
+      g.fillStyle=colors.trace; g.strokeStyle=colors.surface; g.lineWidth=1.5*dpr;
+      g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); g.stroke();
+      g.fillStyle=colors.ink; g.font=(11*dpr)+'px "IBM Plex Sans Condensed",system-ui,sans-serif'; g.textAlign='left';
+      g.fillText(String(state.points.indexOf(p.p)+1),x+r+3*dpr,y+4*dpr);
+    });
+  }
+  // candidates
+  (s.C||[]).forEach(c=>{
+    const x=T.X(c.x), y=T.Y(c.y), r=7*dpr;
+    g.strokeStyle=colors.ink; g.lineWidth=2*dpr; g.fillStyle=colors.surface;
+    g.beginPath(); g.moveTo(x,y-r); g.lineTo(x+r,y); g.lineTo(x,y+r); g.lineTo(x-r,y); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle=colors.ink; g.font='500 '+(12*dpr)+'px "IBM Plex Sans Condensed",system-ui,sans-serif'; g.textAlign='left';
+    g.fillText(c.c.name,x+r+4*dpr,y+4*dpr);
+  });
+  // estimate
+  if(s.ok){
+    const x=T.X(s.est.x), y=T.Y(s.est.y), r=11*dpr;
+    g.strokeStyle=colors.target; g.lineWidth=2.5*dpr;
+    g.beginPath(); g.arc(x,y,r*.55,0,Math.PI*2); g.stroke();
+    g.beginPath(); g.moveTo(x-r*1.4,y); g.lineTo(x-r*.55,y); g.moveTo(x+r*.55,y); g.lineTo(x+r*1.4,y); g.moveTo(x,y-r*1.4); g.lineTo(x,y-r*.55); g.moveTo(x,y+r*.55); g.lineTo(x,y+r*1.4); g.stroke();
+  }
+  if(tapPt){
+    const x=T.X(tapPt.x), y=T.Y(tapPt.y); g.strokeStyle=colors.ink; g.lineWidth=1.5*dpr; g.beginPath(); g.arc(x,y,5*dpr,0,Math.PI*2); g.stroke();
+  }
+}
+function hexRgb(h){h=(h||'#C2185B').replace('#',''); if(h.length===3) h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255];}
+let tapPt=null;
+$('map').addEventListener('click',e=>{
+  const s=lastSol; if(!s||!s.toXY) return;
+  const r=$('map').getBoundingClientRect(), dpr=window.devicePixelRatio||1, T=mapXform();
+  const x=T.iX((e.clientX-r.left)*dpr), y=T.iY((e.clientY-r.top)*dpr); tapPt={x,y};
+  const ll=s.toLL(x,y);
+  let h='<p><b>Punto toccato:</b> '+ll.lat.toFixed(5)+', '+ll.lon.toFixed(5)+' (<a href="'+osm(ll.lat,ll.lon)+'" target="_blank" rel="noopener">OpenStreetMap</a>, <a href="'+gmap(ll.lat,ll.lon)+'" target="_blank" rel="noopener">Google Maps</a>)';
+  if(s.ok){const d=(s.evalLL(ll.lat,ll.lon).rss-s.rssMin)/(state.settings.sigma**2); h+=' è '+(d<=5.99?'compatibile con le misure':d<=13.8?'poco probabile':'escluso dai dati')+'.';}
+  $('tapRes').innerHTML=h+'</p>'; drawMap();
+});
+
+// ---------- init ----------
+renderPoints();
+fitAll();
+(function idle(){ if(!running){ const cv=$('spec'), g=cv.getContext('2d'); g.clearRect(0,0,cv.width,cv.height); } })();
+})();
+</script>
+</body>
+</html>
